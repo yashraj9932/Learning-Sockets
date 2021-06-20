@@ -10,7 +10,7 @@ const io = socketio(server);
 const { getUser, getUsersInRoom, removeUser, addUser } = require("./users");
 
 io.on("connection", (socket) => {
-  console.log("A user has joined the chat");
+  // console.log("A user has joined the chat");
 
   socket.on("join", ({ name, room }, callback) => {
     const { error, user } = addUser({ id: socket.id, name, room });
@@ -31,18 +31,34 @@ io.on("connection", (socket) => {
     });
     socket.join(user.room);
     callback();
+
+    io.to(user.room).emit("roomData", {
+      room: user.room,
+      users: getUsersInRoom(user.room),
+    });
   });
 
   socket.on("sendMessage", (message, callback) => {
     const user = getUser(socket.id);
     // console.log(user);
     io.to(user.room).emit("message", { user: user.name, text: message });
+    io.to(user.room).emit("roomData", {
+      room: user.room,
+      users: getUsersInRoom(user.room),
+    });
 
     callback();
   });
 
   socket.on("disconnect", () => {
-    console.log("User has left the chat");
+    const user = removeUser(socket.id);
+
+    if (user) {
+      io.to(user.room).emit("message", {
+        user: "Admin",
+        text: `${user.name} has left the chat`,
+      });
+    }
   });
 });
 
